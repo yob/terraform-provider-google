@@ -78,7 +78,7 @@ var schemaNodePool = map[string]*schema.Schema{
 				"max_node_count": {
 					Type:         schema.TypeInt,
 					Required:     true,
-					ValidateFunc: validation.IntAtLeast(1),
+					ValidateFunc: validation.IntAtLeast(0),
 				},
 			},
 		},
@@ -466,11 +466,19 @@ func expandNodePool(d *schema.ResourceData, prefix string) (*containerBeta.NodeP
 
 	if v, ok := d.GetOk(prefix + "autoscaling"); ok {
 		autoscaling := v.([]interface{})[0].(map[string]interface{})
-		np.Autoscaling = &containerBeta.NodePoolAutoscaling{
-			Enabled:         true,
-			MinNodeCount:    int64(autoscaling["min_node_count"].(int)),
-			MaxNodeCount:    int64(autoscaling["max_node_count"].(int)),
-			ForceSendFields: []string{"MinNodeCount"},
+		minNodes := int64(autoscaling["min_node_count"].(int),
+		maxNodes := int64(autoscaling["max_node_count"].(int))
+		if minNodes == 0 && maxNodes == 0 {
+			np.Autoscaling = &containerBeta.NodePoolAutoscaling{
+				Enabled:         false,
+			}
+		} else {
+			np.Autoscaling = &containerBeta.NodePoolAutoscaling{
+				Enabled:         true,
+				MinNodeCount:    minNodes,
+				MaxNodeCount:    maxNodes,
+				ForceSendFields: []string{"MinNodeCount"},
+			}
 		}
 	}
 
@@ -548,11 +556,19 @@ func nodePoolUpdate(d *schema.ResourceData, meta interface{}, nodePoolInfo *Node
 		}
 		if v, ok := d.GetOk(prefix + "autoscaling"); ok {
 			autoscaling := v.([]interface{})[0].(map[string]interface{})
-			update.DesiredNodePoolAutoscaling = &containerBeta.NodePoolAutoscaling{
-				Enabled:         true,
-				MinNodeCount:    int64(autoscaling["min_node_count"].(int)),
-				MaxNodeCount:    int64(autoscaling["max_node_count"].(int)),
-				ForceSendFields: []string{"MinNodeCount"},
+			minNodes := int64(autoscaling["min_node_count"].(int))
+			maxNodes := int64(autoscaling["max_node_count"].(int),
+			if minNodes == 0 && maxNodes == 0 {
+				update.DesiredNodePoolAutoscaling = &containerBeta.NodePoolAutoscaling{
+					Enabled: false,
+				}
+			} else {
+				update.DesiredNodePoolAutoscaling = &containerBeta.NodePoolAutoscaling{
+					Enabled:         true,
+					MinNodeCount:    minNodes,
+					MaxNodeCount:    maxNodes,
+					ForceSendFields: []string{"MinNodeCount"},
+				}
 			}
 		} else {
 			update.DesiredNodePoolAutoscaling = &containerBeta.NodePoolAutoscaling{
